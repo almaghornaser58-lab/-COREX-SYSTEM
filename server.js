@@ -1,0 +1,37 @@
+const express=require('express'),Database=require('better-sqlite3'),bcrypt=require('bcryptjs'),jwt=require('jsonwebtoken'),path=require('path');
+const SECRET=process.env.JWT_SECRET,ADMIN=process.env.ADMIN_KEY||'',PORT=process.env.PORT||3000,TRIAL_DAYS=7,DAY=864e5;
+if(!SECRET||SECRET.length<20){console.error('اضبط JWT_SECRET (نص عشوائي طويل)');process.exit(1)}
+const db=new Database(process.env.DB_PATH||'store.db');
+db.exec(`CREATE TABLE IF NOT EXISTS users(id INTEGER PRIMARY KEY,email TEXT UNIQUE,phone TEXT UNIQUE,hash TEXT,expires INTEGER);
+CREATE TABLE IF NOT EXISTS data(user_id INTEGER PRIMARY KEY,json TEXT);
+CREATE TABLE IF NOT EXISTS visits(id INTEGER PRIMARY KEY CHECK(id=1),n INTEGER);
+INSERT OR IGNORE INTO visits VALUES(1,0);`);
+const app=express();app.set('trust proxy',1);app.use(express.json({limit:'5mb'}));app.use(express.static(path.join(__dirname,'public')));
+const tok=u=>jwt.sign({id:u.id},SECRET,{expiresIn:'30d'});
+const tries={};const limited=ip=>{const n=Date.now(),t=(tries[ip]=(tries[ip]||[]).filter(x=>n-x<9e5));t.push(n);return t.length>10};
+const guard=(req,res,next)=>{try{const{id}=jwt.verify((req.headers.authorization||'').slice(7),SECRET);
+ const u=db.prepare('SELECT * FROM users WHERE id=?').get(id);if(!u)throw 0;
+ if(u.expires<Date.now())return res.status(402).json({error:'انتهى الاشتراك، تواصل مع الإدارة للتجديد'});req.u=u;next()}
+ catch(e){res.status(401).json({error:'سجّل الدخول'})}};
+app.post('/api/register',(req,res)=>{if(limited(req.ip))return res.status(429).json({error:'محاولات كثيرة، انتظر قليلاً'});
+ const{email='',phone='',password=''}=req.body||{},em=email.trim().toLowerCase(),ph=phone.trim();
+ if(!/^\S+@\S+\.\S+$/.test(em))return res.status(400).json({error:'البريد الإلكتروني غير صحيح'});
+ if(!/^\+?\d{8,15}$/.test(ph))return res.status(400).json({error:'رقم الجوال غير صحيح'});
+ if(!/^\d{10}$/.test(password))return res.status(400).json({error:'كلمة المرور لازم تكون 10 أرقام'});
+ try{const r=db.prepare('INSERT INTO users(email,phone,hash,expires) VALUES(?,?,?,?)').run(em,ph,bcrypt.hashSync(password,10),Date.now()+TRIAL_DAYS*DAY);
+  res.json({token:tok({id:r.lastInsertRowid})})}catch(e){res.status(409).json({error:'البريد أو الجوال مسجل من قبل'})}});
+app.post('/api/login',(req,res)=>{if(limited(req.ip))return res.status(429).json({error:'محاولات كثيرة، انتظر قليلاً'});
+ const{id='',password=''}=req.body||{},k=String(id).trim().toLowerCase();
+ const u=db.prepare('SELECT * FROM users WHERE email=? OR phone=?').get(k,k);
+ if(!u||!bcrypt.compareSync(String(password),u.hash))return res.status(401).json({error:'بيانات الدخول غير صحيحة'});
+ res.json({token:tok(u)})});
+app.get('/api/data',guard,(req,res)=>{const r=db.prepare('SELECT json FROM data WHERE user_id=?').get(req.u.id);
+ res.json({data:r?JSON.parse(r.json):{},email:req.u.email,expires:req.u.expires})});
+app.put('/api/data',guard,(req,res)=>{const d=req.body||{};delete d.session;delete d.users;
+ db.prepare('INSERT INTO data(user_id,json) VALUES(?,?) ON CONFLICT(user_id) DO UPDATE SET json=excluded.json').run(req.u.id,JSON.stringify(d));res.json({ok:1})});
+app.post('/api/visit',(req,res)=>{db.prepare('UPDATE visits SET n=n+1').run();res.json({n:db.prepare('SELECT n FROM visits').get().n})});
+app.post('/api/admin/extend',(req,res)=>{const{key,email,days}=req.body||{};
+ if(!ADMIN||key!==ADMIN)return res.status(403).json({error:'مفتاح خاطئ'});
+ const u=db.prepare('SELECT * FROM users WHERE email=?').get(String(email).toLowerCase());if(!u)return res.status(404).json({error:'غير موجود'});
+ const exp=Math.max(u.expires,Date.now())+Number(days||30)*DAY;db.prepare('UPDATE users SET expires=? WHERE id=?').run(exp,u.id);res.json({expires:new Date(exp)})});
+app.listen(PORT,()=>console.log('LIBYA STORE SYSTEM on '+PORT));
