@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>LIBYA STORE SYSTEM</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f2f4f0;--card:#fff;--ink:#16221b;--mut:#66746b;--line:#dde3dc;--g:#0b7a45;--r:#c8372d;--sand:#e9efe6;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#101712;--card:#18221b;--ink:#eaf0ea;--mut:#9aa9a0;--line:#2a372e;--g:#3fbf80;--r:#ef6a60;--sand:#1f2b23}}
+:root[data-theme="dark"]{--bg:#101712;--card:#18221b;--ink:#eaf0ea;--mut:#9aa9a0;--line:#2a372e;--g:#3fbf80;--r:#ef6a60;--sand:#1f2b23}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 15px/1.6 Cairo,Tahoma,Arial,sans-serif}
+header{background:var(--g);color:#fff;padding:14px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+header h1{margin:0;font-size:20px;font-weight:800;flex:1}
+header select{background:#ffffff26;color:#fff;border:0;border-radius:8px;padding:6px 8px;font:inherit}
+header select option{color:#000}
+nav{display:flex;overflow-x:auto;background:var(--card);border-bottom:1px solid var(--line);position:sticky;top:env(safe-area-inset-top,0px);z-index:5}
+nav button{flex:1;min-width:84px;padding:12px 8px;border:0;background:none;color:var(--mut);font:600 14px Cairo,Tahoma,sans-serif;border-bottom:3px solid transparent;cursor:pointer}
+nav button.on{color:var(--g);border-color:var(--g)}
+main{max-width:860px;margin:0 auto;padding:14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.stat{background:var(--sand);border-radius:10px;padding:10px 12px}
+.stat b{display:block;font-size:20px;font-weight:800}.stat span{color:var(--mut);font-size:13px}
+.pos{color:var(--g)}.neg{color:var(--r)}
+input,select,button.b{font:inherit;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink);width:100%}
+button.b{background:var(--g);color:#fff;border:0;font-weight:600;cursor:pointer}
+button.b.s{background:var(--sand);color:var(--ink)}
+.row{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-bottom:8px}
+label{font-size:13px;color:var(--mut);display:block}
+.item{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line)}
+.item:last-child{border:0}.item .t{flex:1}.item small{color:var(--mut);display:block}
+.item img,.ph{width:46px;height:46px;border-radius:8px;object-fit:cover;background:var(--sand);display:grid;place-items:center}
+.x{background:none;border:0;color:var(--r);font-size:18px;cursor:pointer}
+.low{color:var(--r);font-weight:600}
+h2{font-size:17px;margin:0 0 10px}
+.bar{height:8px;background:var(--g);border-radius:4px;margin-top:3px}
+.empty{color:var(--mut);text-align:center;padding:16px}
+.bk{background:#ffffff26;color:#fff;border:0;border-radius:8px;font-size:20px;padding:2px 10px;cursor:pointer}
+#lg{width:36px;height:36px;border-radius:8px;object-fit:cover}
+.auth{max-width:380px;margin:30px auto}.auth .row{display:block}.auth input{margin-bottom:10px}
+.err{color:var(--r);font-size:13px;min-height:20px}
+.tg{display:flex;gap:8px;margin-bottom:12px}
+</style>
+</head>
+<body>
+<header><button class="bk" id="back" onclick="goBack()" hidden>→</button><img id="lg" alt="" hidden><h1 id="sn">🏪 LIBYA STORE SYSTEM</h1>
+<select id="br"></select><select id="cur"><option value="د.ل">دينار ليبي</option><option value="ر.س">ريال سعودي</option><option value="$">دولار</option></select></header>
+<nav id="nav"></nav>
+<main id="app"></main>
+<script>
+const $=s=>document.querySelector(s);
+const TABS=[['home','📊 الرئيسية'],['prod','📦 المنتجات'],['sale','🧾 المبيعات'],['buy','🛒 المشتريات'],['rep','📈 التقارير'],['set','⚙️ الإعدادات']];
+let D={branches:['الفرع الرئيسي'],products:[],sales:[],purchases:[],cur:'د.ل',users:[],session:'',store:{name:'',logo:''},visits:0},br=0,tab='home',cart=[],per='day',hist=[],am='in',VIS=null;
+let TK='';try{TK=localStorage.getItem('ls-token')||''}catch(e){}
+const def=()=>({branches:['الفرع الرئيسي'],products:[],sales:[],purchases:[],cur:'د.ل',users:[],session:'',store:{name:'',logo:''},visits:0});
+const api=async(u,o={})=>{const r=await fetch(u,{...o,headers:{'Content-Type':'application/json',Authorization:'Bearer '+TK},body:o.body&&JSON.stringify(o.body)});const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'خطأ في الاتصال');return j};
+let _t;const save=()=>{clearTimeout(_t);_t=setTimeout(()=>{if(TK)api('/api/data',{method:'PUT',body:D}).catch(()=>{})},500)};
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,5);
+const B=()=>D.branches[br];
+const prods=()=>D.products.filter(p=>p.branch===B());
+const m=n=>(Math.round(n*100)/100).toLocaleString('en')+' '+D.cur;
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function since(p){const d=new Date();d.setHours(0,0,0,0);
+ if(p==='week')d.setDate(d.getDate()-6);if(p==='month')d.setDate(1);if(p==='year'){d.setMonth(0,1)}return d.getTime()}
+function stats(p){const t=since(p);let rev=0,cogs=0,buy=0,cnt={};
+ D.sales.filter(s=>s.branch===B()&&s.date>=t).forEach(s=>s.items.forEach(i=>{rev+=i.qty*i.price;cogs+=i.qty*i.cost;cnt[i.name]=(cnt[i.name]||0)+i.qty}));
+ D.purchases.filter(x=>x.branch===B()&&x.date>=t).forEach(x=>buy+=x.qty*x.cost);
+ return{rev,cogs,buy,profit:rev-cogs,top:Object.entries(cnt).sort((a,b)=>b[1]-a[1]).slice(0,5)}}
+function st(s){return`<div class="stat"><span>${s[0]}</span><b class="${s[2]||''}">${s[1]}</b></div>`}
+const opts=()=>prods().map(p=>`<option value="${p.id}">${esc(p.name)} (${p.qty})</option>`).join('');
+const pend=()=>'<div class="empty">أضف منتجات أولاً من تبويب المنتجات</div>';
+
+function go(t){hist.push(tab);tab=t;render()}
+function goBack(){tab=hist.pop()||'home';render()}
+function render(){
+ const au=!D.session;
+ $('#nav').style.display=$('#br').style.display=$('#cur').style.display=au?'none':'';
+ $('#back').hidden=au||tab==='home';
+ $('#sn').textContent=D.store.name||'🏪 LIBYA STORE SYSTEM';
+ $('#lg').hidden=!D.store.logo;if(D.store.logo)$('#lg').src=D.store.logo;
+ if(au){$('#app').innerHTML=V.auth();return}
+ $('#nav').innerHTML=TABS.map(t=>`<button class="${t[0]===tab?'on':''}" onclick="go('${t[0]}')">${t[1]}</button>`).join('');
+ $('#br').innerHTML=D.branches.map((b,i)=>`<option value="${i}" ${i===br?'selected':''}>${esc(b)}</option>`).join('')+'<option value="new">+ فرع جديد</option>';
+ $('#cur').value=D.cur;
+ $('#app').innerHTML=V[tab]();
+}
+const V={
+home(){const d=stats('day'),mo=stats('month'),low=prods().filter(p=>p.qty<=3);
+ const val=prods().reduce((a,p)=>a+p.qty*p.buy,0);
+ return`<div class="card"><h2>اليوم</h2><div class="grid">${st(['المبيعات',m(d.rev)])}${st(['الربح',m(d.profit),d.profit>=0?'pos':'neg'])}${st(['المشتريات',m(d.buy)])}</div></div>
+ <div class="card"><h2>الشهر</h2><div class="grid">${st(['المبيعات',m(mo.rev)])}${st(['الربح',m(mo.profit),mo.profit>=0?'pos':'neg'])}${st(['قيمة المخزون',m(val)])}</div></div>
+ <div class="card"><h2>⚠️ مخزون منخفض</h2>${low.length?low.map(p=>`<div class="item"><div class="t">${esc(p.name)}</div><span class="low">${p.qty} متبقي</span></div>`).join(''):'<div class="empty">كل المنتجات متوفرة</div>'}</div>`},
+prod(){const L=prods();
+ return`<div class="card"><h2>إضافة منتج</h2><div class="row"><div><label>الاسم</label><input id="pn"></div><div><label>سعر الشراء</label><input id="pb" type="number" step="any"></div><div><label>سعر البيع</label><input id="ps" type="number" step="any"></div><div><label>الكمية</label><input id="pq" type="number"></div></div>
+ <div class="row"><div><label>📸 صورة المنتج</label><input id="pi" type="file" accept="image/*"></div></div><button class="b" onclick="addP()">حفظ المنتج</button></div>
+ <div class="card"><h2>المنتجات (${L.length})</h2>${L.length?L.map(p=>`<div class="item">${p.img?`<img src="${p.img}" alt="">`:'<div class="ph">📦</div>'}<div class="t"><b>${esc(p.name)}</b><small>شراء ${m(p.buy)} · بيع ${m(p.sell)}</small></div><span class="${p.qty<=3?'low':''}">${p.qty}</span><button class="x" onclick="delP('${p.id}')">✕</button></div>`).join(''):'<div class="empty">لا توجد منتجات بعد</div>'}</div>`},
+sale(){const tot=cart.reduce((a,i)=>a+i.qty*i.price,0);
+ const last=D.sales.filter(s=>s.branch===B()).slice(-5).reverse();
+ return`<div class="card"><h2>فاتورة جديدة</h2>${prods().length?`<div class="row"><div><label>المنتج</label><select id="sp" onchange="$('#spr').value=D.products.find(p=>p.id===this.value).sell">${opts()}</select></div><div><label>الكمية</label><input id="sq" type="number" value="1" min="1"></div><div><label>السعر</label><input id="spr" type="number" step="any" value="${prods()[0].sell}"></div></div><button class="b s" onclick="addC()">+ إضافة للفاتورة</button>`:pend()}
+ ${cart.map((i,k)=>`<div class="item"><div class="t">${esc(i.name)}<small>${i.qty} × ${m(i.price)}</small></div><b>${m(i.qty*i.price)}</b><button class="x" onclick="cart.splice(${k},1);render()">✕</button></div>`).join('')}
+ ${cart.length?`<h2 style="margin-top:12px">الإجمالي: ${m(tot)}</h2><button class="b" onclick="done()">إتمام البيع</button>`:''}</div>
+ <div class="card"><h2>آخر الفواتير</h2>${last.length?last.map(s=>`<div class="item"><div class="t">${new Date(s.date).toLocaleString('ar-LY')}<small>${s.items.map(i=>esc(i.name)+' ×'+i.qty).join('، ')}</small></div><b>${m(s.items.reduce((a,i)=>a+i.qty*i.price,0))}</b></div>`).join(''):'<div class="empty">لا توجد فواتير</div>'}</div>`},
+buy(){const last=D.purchases.filter(x=>x.branch===B()).slice(-6).reverse();
+ return`<div class="card"><h2>تسجيل مشتريات</h2>${prods().length?`<div class="row"><div><label>المنتج</label><select id="bp">${opts()}</select></div><div><label>الكمية</label><input id="bq" type="number" value="1" min="1"></div><div><label>سعر الشراء للوحدة</label><input id="bc" type="number" step="any"></div></div><button class="b" onclick="addB()">حفظ وإضافة للمخزون</button>`:pend()}</div>
+ <div class="card"><h2>آخر المشتريات</h2>${last.length?last.map(x=>`<div class="item"><div class="t">${esc(x.name)}<small>${x.qty} × ${m(x.cost)}</small></div><b>${m(x.qty*x.cost)}</b></div>`).join(''):'<div class="empty">لا توجد مشتريات</div>'}</div>`},
+rep(){const s=stats(per),mx=s.top[0]?s.top[0][1]:1;
+ const P=[['day','يومي'],['week','أسبوعي'],['month','شهري'],['year','سنوي']];
+ return`<div class="card"><div class="row" style="margin:0">${P.map(p=>`<button class="b ${p[0]===per?'':'s'}" onclick="per='${p[0]}';render()">${p[1]}</button>`).join('')}</div></div>
+ <div class="card"><h2>الأرباح والخسائر</h2><div class="grid">${st(['المبيعات',m(s.rev)])}${st(['تكلفة البضاعة',m(s.cogs)])}${st([s.profit>=0?'صافي الربح':'صافي الخسارة',m(Math.abs(s.profit)),s.profit>=0?'pos':'neg'])}${st(['المشتريات',m(s.buy)])}</div></div>
+ <div class="card"><h2>🔥 الأكثر مبيعًا</h2>${s.top.length?s.top.map(t=>`<div style="margin-bottom:8px">${esc(t[0])} — <b>${t[1]}</b><div class="bar" style="width:${t[1]/mx*100}%"></div></div>`).join(''):'<div class="empty">لا توجد مبيعات في هذه الفترة</div>'}</div>`}
+};
+V.auth=()=>`<div class="card auth"><div class="tg"><button class="b ${am==='in'?'':'s'}" onclick="am='in';render()">تسجيل الدخول</button><button class="b ${am==='up'?'':'s'}" onclick="am='up';render()">حساب جديد</button></div>
+ ${am==='up'?'<label>رقم الجوال</label><input id="ph" type="tel" inputmode="numeric" placeholder="09XXXXXXXX">':''}
+ <label>${am==='up'?'البريد الإلكتروني':'البريد الإلكتروني أو رقم الجوال'}</label><input id="em" autocomplete="username">
+ <label>كلمة المرور (10 أرقام)</label><input id="pw" type="password" inputmode="numeric" maxlength="10" autocomplete="current-password">
+ <div class="err" id="er"></div><button class="b" onclick="auth()">${am==='up'?'إنشاء الحساب':'دخول'}</button></div>`;
+V.set=()=>`<div class="card"><h2>🖊️ بيانات المتجر</h2><label>اسم المتجر</label><input id="stn" value="${esc(D.store.name)}" style="margin-bottom:8px"><label>شعار المتجر</label><input id="stl" type="file" accept="image/*" style="margin-bottom:8px"><button class="b" onclick="saveStore()">حفظ</button></div>
+ <div class="card"><h2>👥 عدد من فتحوا المنظومة</h2><div class="grid">${VIS!==null?st(['إجمالي مرات الفتح',VIS]):''}</div></div>
+ <div class="card"><h2>🏪 الفروع والمخازن</h2><div class="row"><select id="bt"><option>فرع</option><option>مخزن</option></select><input id="bn" placeholder="الاسم"><button class="b" onclick="addBr()">إضافة</button></div>
+ ${D.branches.map((b,i)=>`<div class="item"><div class="t"><b>${esc(b)}</b><small>${D.products.filter(p=>p.branch===b).length} منتج${i===br?' · الحالي':''}</small></div><button class="x" style="color:var(--g)" onclick="renBr(${i})">✎</button><button class="x" onclick="delBr(${i})">✕</button></div>`).join('')}</div>
+ <div class="card"><div class="item"><div class="t">${esc(D.session)}</div><button class="b s" style="width:auto" onclick="logout()">تسجيل الخروج</button></div></div>`;
+async function auth(){const id=$('#em').value.trim(),pw=$('#pw').value,e=t=>$('#er').textContent=t;
+ if(!/^\d{10}$/.test(pw))return e('كلمة المرور لازم تكون 10 أرقام بالضبط');
+ try{const b=am==='up'?{email:id,phone:$('#ph').value.trim(),password:pw}:{id,password:pw};
+  const r=await api(am==='up'?'/api/register':'/api/login',{method:'POST',body:b});
+  TK=r.token;try{localStorage.setItem('ls-token',TK)}catch(x){}await boot()}catch(x){e(x.message)}}
+async function boot(){try{const r=await api('/api/data');D={...def(),...r.data,session:r.email,users:[]};br=0}catch(x){TK='';D=def();alert(x.message)}render()}
+function logout(){TK='';try{localStorage.removeItem('ls-token')}catch(e){}D=def();hist=[];tab='home';render()}
+function saveStore(){D.store.name=$('#stn').value.trim();const f=$('#stl').files[0];
+ if(!f){save();return render()}
+ const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{const c=document.createElement('canvas'),k=Math.min(1,160/Math.max(im.width,im.height));c.width=im.width*k;c.height=im.height*k;c.getContext('2d').drawImage(im,0,0,c.width,c.height);D.store.logo=c.toDataURL('image/jpeg',.8);save();render()};im.src=r.result};r.readAsDataURL(f)}
+function addBr(){const n=$('#bn').value.trim();if(!n)return;D.branches.push($('#bt').value+' '+n);save();render()}
+function renBr(i){const n=prompt('الاسم الجديد',D.branches[i]);if(n&&n.trim()){const o=D.branches[i];D.products.forEach(p=>{if(p.branch===o)p.branch=n.trim()});D.sales.forEach(x=>{if(x.branch===o)x.branch=n.trim()});D.purchases.forEach(x=>{if(x.branch===o)x.branch=n.trim()});D.branches[i]=n.trim();save();render()}}
+function delBr(i){if(D.branches.length<2)return alert('لازم يبقى فرع واحد على الأقل');if(D.products.some(p=>p.branch===D.branches[i]))return alert('انقل أو احذف منتجات هذا الفرع أولاً');D.branches.splice(i,1);br=0;save();render()}
+async function visit(){if(sessionStorage.getItem('v'))return;try{sessionStorage.setItem('v','1')}catch(e){}
+ try{VIS=(await api('/api/visit',{method:'POST'})).n;if(tab==='set')render()}catch(e){}}
+function addP(){const n=$('#pn').value.trim();if(!n)return alert('اكتب اسم المنتج');
+ const p={id:uid(),branch:B(),name:n,buy:+$('#pb').value||0,sell:+$('#ps').value||0,qty:+$('#pq').value||0,img:''};
+ const f=$('#pi').files[0],fin=()=>{D.products.push(p);save();render()};
+ if(!f)return fin();
+ const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{const c=document.createElement('canvas'),k=Math.min(1,120/Math.max(im.width,im.height));c.width=im.width*k;c.height=im.height*k;c.getContext('2d').drawImage(im,0,0,c.width,c.height);p.img=c.toDataURL('image/jpeg',.7);fin()};im.src=r.result};r.readAsDataURL(f)}
+function delP(id){if(confirm('حذف المنتج؟')){D.products=D.products.filter(p=>p.id!==id);save();render()}}
+function addC(){const p=D.products.find(x=>x.id===$('#sp').value),q=+$('#sq').value;
+ const inCart=cart.filter(i=>i.pid===p.id).reduce((a,i)=>a+i.qty,0);
+ if(q<1||q+inCart>p.qty)return alert('الكمية غير متوفرة في المخزون');
+ cart.push({pid:p.id,name:p.name,qty:q,price:+$('#spr').value||0,cost:p.buy});render()}
+function done(){cart.forEach(i=>D.products.find(p=>p.id===i.pid).qty-=i.qty);
+ D.sales.push({id:uid(),date:Date.now(),branch:B(),items:cart});cart=[];save();render()}
+function addB(){const p=D.products.find(x=>x.id===$('#bp').value),q=+$('#bq').value,c=+$('#bc').value||p.buy;
+ if(q<1)return;p.qty+=q;p.buy=c;D.purchases.push({id:uid(),date:Date.now(),branch:B(),name:p.name,qty:q,cost:c});save();render()}
+$('#br').onchange=e=>{if(e.target.value==='new'){const n=prompt('اسم الفرع أو المخزن');if(n&&n.trim()){D.branches.push(n.trim());br=D.branches.length-1;save()}}else br=+e.target.value;cart=[];render()};
+$('#cur').onchange=e=>{D.cur=e.target.value;save();render()};
+visit();TK?boot():render();
+</script>
+</body>
+</html>
