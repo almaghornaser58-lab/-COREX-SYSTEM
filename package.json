@@ -1,0 +1,1 @@
+{"name":"COREX-SYSTEM","version":"1.0.0","private":true,"scripts":{"start":"node server.js"},"dependencies":{"express":"^4.19.2","better-sqlite3":"^11.0.0","bcryptjs":"^2.4.3","jsonwebtoken":"^9.0.2"},"engines":{"node":">=18"}}
